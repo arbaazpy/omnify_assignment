@@ -24,10 +24,17 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+
+    # User accounts management
     path('accounts/', include('accounts.urls')),
+
+    # Events app API endpoints
+    path('events/', include('events.urls')),
+
+    # JWT token refresh endpoint
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 
-    # Schema & Docs
+    # API schema and Swagger UI docs
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
 ]
