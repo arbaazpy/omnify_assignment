@@ -1,7 +1,7 @@
 from rest_framework import mixins, viewsets
 from rest_framework.permissions import IsAuthenticated
 
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
 
 from django.shortcuts import get_object_or_404
 
@@ -13,7 +13,33 @@ from events.models import Event, Attendee
 
 @extend_schema(
     tags=["Events"],
-    description="API endpoint to manage events."
+    description="API endpoint to manage events. Optional timezone support via ?tz=Europe/London.",
+    parameters=[
+        OpenApiParameter(
+            name='tz',
+            description='Optional timezone string (e.g., Asia/Kolkata, Europe/London)',
+            required=False,
+            type=str,
+            location=OpenApiParameter.QUERY,
+            examples=[
+                OpenApiExample(
+                    name='India Timezone',
+                    value='Asia/Kolkata',
+                    summary='Convert datetimes to India Standard Time'
+                ),
+                OpenApiExample(
+                    name='UK Timezone',
+                    value='Europe/London',
+                    summary='Convert datetimes to UK time'
+                ),
+                 OpenApiExample(
+                    name='US (Eastern) Timezone',
+                    value='America/New_York',
+                    summary='Convert datetimes to US time'
+                )
+            ]
+        )
+    ]
 )
 class EventViewSet(
     mixins.ListModelMixin,
@@ -23,18 +49,17 @@ class EventViewSet(
 ):
     """
     API endpoint to manage events.
-    Supports listing and creation of events by authenticated users.
-    Automatically associates the authenticated user as the creator.
+
+    Features:
+    - Authenticated users can list and create events.
+    - Automatically associates the authenticated user as the event creator.
+    - Supports optional timezone conversion for datetime fields via the `tz` query parameter (e.g., ?tz=Europe/London).
     """
     queryset = Event.objects.all().order_by('-created_at')
     serializer_class = EventSerializer
     permission_classes = [IsAuthenticated]
 
 
-@extend_schema(
-    tags=["Attendees"],
-    description="API endpoint to register attendees for an event."
-)
 class AttendeeRegisterViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
     """
     API endpoint to register an attendee for a specific event.

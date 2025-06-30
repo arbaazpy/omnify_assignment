@@ -1,6 +1,6 @@
 # Event Management API
 
-A Django REST Framework (DRF) based API to manage events and attendees, implementing features such as event creation, registration, attendee listing, and authentication. Built with DRF and drf-spectacular for modern API-first projects.
+A Django REST Framework (DRF) based API to manage events and attendees. It supports features like event creation, attendee registration, user authentication, and timezone-aware scheduling. Built using Django, DRF, and drf-spectacular with clean, modular architecture.
 
 ---
 
@@ -12,9 +12,10 @@ A Django REST Framework (DRF) based API to manage events and attendees, implemen
 - Secure user profile endpoint (`/me`)
 
 ### Event Management
-- Create events with name, location, start/end time, and capacity
+- Create events with name, location, start/end time, and max capacity
 - Creator is automatically assigned
-- Cannot create events with invalid time range
+- Validates that end time is after start time
+- **Timezone-aware output**: Convert slots to user-specified timezone via `?tz=ZoneName` param
 
 ### Attendee Registration
 - Users can register other users to events
@@ -25,22 +26,24 @@ A Django REST Framework (DRF) based API to manage events and attendees, implemen
 - List of attendees returned in flat user list
 
 ### API Endpoints
-- `POST /events/`: Create event
-- `GET /events/`: List all events
-- `POST /events/{id}/register/`: Register a user as attendee
-- `GET /events/{id}/attendees/`: Get event with attendees
-- `POST /register/`: Create user
-- `POST /login/`: Get access/refresh token pair
-- `POST /logout/`: Blacklist refresh token
-- `GET /me/`: Get current user
 
+| Method | Endpoint                         | Description                       |
+|--------|----------------------------------|-----------------------------------|
+| POST   | `/events/`                       | Create an event                   |
+| GET    | `/events/`                       | List all events (supports `?tz=`) |
+| POST   | `/events/{id}/register/`         | Register a user for an event      |
+| GET    | `/events/{id}/attendees/`        | List all attendees for the event  |
+| POST   | `/register/`                     | Create a user account             |
+| POST   | `/login/`                        | Get access/refresh token pair     |
+| POST   | `/logout/`                       | Blacklist refresh token           |
+| GET    | `/me/`                           | Get current user profile          |
 ---
 
 ## Installation
 
 1. **Clone the repository**
 ```bash
-git clone git@github.com:arbaazpy/omnify_assignment.git
+git clone https://github.com/arbaazpy/omnify_assignment.git
 cd omnify_assignment
 ```
 
@@ -109,10 +112,19 @@ http://localhost:8000/api/schema/
 
 ## Future Improvements
 
-- **Event tags & filtering**
+- **Filtering events by tags, location, or date**
 - **CSV export of attendee list**
-- **Public/private event visibility**
+- **Public/private event visibility toggle**
+- **Webhooks or email reminders for events**
+- **Role-based access control (RBAC)**
 
 ---
 
-**Note:** This project was developed as part of a technical assignment for Omnify, demonstrating practical skills in Django REST Framework, clean architecture, and API design best practices.
+## Note
+
+This project was developed as part of a technical assignment for Omnify, showcasing:
+
+- **Clean Django architecture**
+- **Django ORM optimization (e.g., select_related, prefetch_related)**
+- **Timezone-aware event management**
+- **API documentation via OpenAPI/Swagger**

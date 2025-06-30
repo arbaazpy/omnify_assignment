@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from event_management.utils.timezone import convert_to_timezone
 from accounts.serializers import UserSerializer
 from events.models import Event, Attendee
 
@@ -11,6 +12,20 @@ class EventSerializer(serializers.ModelSerializer):
     Validates that end_time is after start_time.
     """
     creator = UserSerializer(read_only=True)
+    start_time = serializers.SerializerMethodField()
+    end_time = serializers.SerializerMethodField()
+
+    def get_timezone(self):
+        request = self.context.get('request')
+        return request.query_params.get('tz') if request else None
+
+    def get_start_time(self, obj):
+        tz = self.get_timezone()
+        return convert_to_timezone(obj.start_time, tz).isoformat() if tz else obj.start_time
+
+    def get_end_time(self, obj):
+        tz = self.get_timezone()
+        return convert_to_timezone(obj.end_time, tz).isoformat() if tz else obj.end_time
 
     def validate(self, attrs):
         if attrs['end_time'] <= attrs['start_time']:
@@ -25,7 +40,7 @@ class EventSerializer(serializers.ModelSerializer):
         model = Event
         fields = [
             'id', 'creator', 'name', 'location', 'start_time', 'end_time',
-            'max_capacity', 'created_at', 'updated_at'
+            'max_capacity',
         ]
 
 
