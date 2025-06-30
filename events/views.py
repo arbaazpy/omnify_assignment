@@ -85,8 +85,8 @@ class AttendeeListViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     """
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
-    queryset = User.objects.all().prefetch_related('attendees').order_by('id')
+    queryset = User.objects.all().prefetch_related('attendees')
 
     def get_queryset(self):
         event = get_object_or_404(Event, pk=self.kwargs['event_id'])
-        return super().get_queryset().filter(attendees__event_id=event.id)
+        return super().get_queryset().filter(attendees__event_id=event.id).distinct().order_by('id')
