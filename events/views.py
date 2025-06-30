@@ -1,97 +1,63 @@
-from rest_framework import mixins, viewsets, status
-from rest_framework.response import Response
+from rest_framework import mixins, viewsets
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.decorators import action
 
-from drf_spectacular.utils import extend_schema, OpenApiResponse
+from drf_spectacular.utils import extend_schema
 
-from events.serializers import EventSerializer, AttendeeSerializer, EventExpandSerializer
-from events.models import Event
+from django.shortcuts import get_object_or_404
+
+from accounts.serializers import UserSerializer
+from accounts.models import User
+from events.serializers import EventSerializer, AttendeeSerializer
+from events.models import Event, Attendee
 
 
 @extend_schema(
     tags=["Events"],
-    description="API endpoint to manage events and register attendees."
+    description="API endpoint to manage events."
 )
-class EventViewSet(mixins.ListModelMixin, mixins.CreateModelMixin, viewsets.GenericViewSet):
+class EventViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.CreateModelMixin,
+    viewsets.GenericViewSet
+):
     """
-    API endpoint to manage events and register attendees.
+    API endpoint to manage events.
+    Supports listing and creation of events by authenticated users.
+    Automatically associates the authenticated user as the creator.
     """
-    queryset = Event.objects.all()
+    queryset = Event.objects.all().order_by('-created_at')
     serializer_class = EventSerializer
     permission_classes = [IsAuthenticated]
 
-    @extend_schema(
-        request=AttendeeSerializer,
-        responses={
-            201: OpenApiResponse(response=AttendeeSerializer, description="Attendee successfully registered."),
-            400: OpenApiResponse(description="Validation error (e.g., event full, duplicate registration, etc.)"),
-        },
-        description="Register a user as an attendee to the specified event.",
-        summary="Register attendee to event",
-        tags=["Events"]
-    )
-    @action(
-        detail=True,
-        methods=['post'],
-        url_path='register',
-        serializer_class=AttendeeSerializer,
-        permission_classes=[IsAuthenticated]
-    )
-    def register(self, request, pk=None):
-        """
-        Register an attendee for the specified event.
 
-        Validation constraints (enforced in serializer):
-        - Event creator cannot register as an attendee.
-        - Same user cannot register more than once for the event.
-        - Max capacity must not be exceeded.
-        """
-        # Get the event object
-        event = self.get_object()
+@extend_schema(
+    tags=["Attendees"],
+    description="API endpoint to register attendees for an event."
+)
+class AttendeeRegisterViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
+    """
+    API endpoint to register an attendee for a specific event.
+    Enforces constraints such as duplicate registration, max capacity, and creator restriction.
+    """
+    serializer_class = AttendeeSerializer
+    permission_classes = [IsAuthenticated]
+    queryset = Attendee.objects.all()
 
-        # Pass event instance and request to serializer context
-        serializer = self.get_serializer(
-            data=request.data,
-            context={
-                'request': request,
-                'event': event,
-            }
-        )
 
-        # Validate data, raise 400 if invalid
-        serializer.is_valid(raise_exception=True)
+@extend_schema(
+    tags=["Attendees"],
+    description="API endpoint to list attendees for an event."
+)
+class AttendeeListViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
+    """
+    API endpoint to list all registered users (attendees) for a specific event.
+    Returns a list of user profiles associated with that event.
+    """
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated]
+    queryset = User.objects.all().prefetch_related('attendees').order_by('id')
 
-        # Save new attendee registration
-        serializer.save()
-
-        # Return created attendee data with HTTP 201
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-    @extend_schema(
-        responses={
-            200: OpenApiResponse(response=EventExpandSerializer, description="Event with its attendees"),
-            404: OpenApiResponse(description="Event not found"),
-        },
-        summary="Get event with attendees",
-        description="Returns detailed event info along with all registered attendees.",
-        tags=["Events"]
-    )
-    @action(
-        detail=True,
-        methods=['get'],
-        url_path='attendees',
-        permission_classes=[IsAuthenticated]
-    )
-    def attendees(self, request, pk=None):
-        """
-        Retrieve detailed event information along with the list of registered attendees.
-        """
-        # Get the event object
-        event = self.get_object()
-
-        # Serialize event with expanded attendees info
-        serializer = EventExpandSerializer(event)
-
-        # Return serialized event data
-        return Response(serializer.data, status=status.HTTP_200_OK)
+    def get_queryset(self):
+        event = get_object_or_404(Event, pk=self.kwargs['event_id'])
+        return super().get_queryset().filter(attendees__event_id=event.id)
