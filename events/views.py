@@ -60,6 +60,10 @@ class EventViewSet(
     permission_classes = [IsAuthenticated]
 
 
+@extend_schema(
+    tags=["Attendees"],
+    description="API endpoint to register attendees for an event."
+)
 class AttendeeRegisterViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
     """
     API endpoint to register an attendee for a specific event.
