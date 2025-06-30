@@ -12,20 +12,18 @@ class EventSerializer(serializers.ModelSerializer):
     Validates that end_time is after start_time.
     """
     creator = UserSerializer(read_only=True)
-    start_time = serializers.SerializerMethodField()
-    end_time = serializers.SerializerMethodField()
 
-    def get_timezone(self):
-        request = self.context.get('request')
-        return request.query_params.get('tz') if request else None
-
-    def get_start_time(self, obj):
-        tz = self.get_timezone()
-        return convert_to_timezone(obj.start_time, tz).isoformat() if tz else obj.start_time
-
-    def get_end_time(self, obj):
-        tz = self.get_timezone()
-        return convert_to_timezone(obj.end_time, tz).isoformat() if tz else obj.end_time
+    class Meta:
+        model = Event
+        fields = [
+            'id',
+            'creator',
+            'name',
+            'location',
+            'start_time',
+            'end_time',
+            'max_capacity',
+        ]
 
     def validate(self, attrs):
         if attrs['end_time'] <= attrs['start_time']:
@@ -36,12 +34,20 @@ class EventSerializer(serializers.ModelSerializer):
         validated_data['creator'] = self.context['request'].user
         return super().create(validated_data)
 
-    class Meta:
-        model = Event
-        fields = [
-            'id', 'creator', 'name', 'location', 'start_time', 'end_time',
-            'max_capacity',
-        ]
+    def to_representation(self, instance):
+        """Override to apply timezone conversion on output only."""
+        data = super().to_representation(instance)
+        tz = self.context['request'].query_params.get("tz")
+
+        if tz:
+            try:
+                data["start_time"] = convert_to_timezone(instance.start_time, tz).isoformat()
+                data["end_time"] = convert_to_timezone(instance.end_time, tz).isoformat()
+            except Exception:
+                # fallback: leave the original
+                pass
+
+        return data
 
 
 class AttendeeSerializer(serializers.ModelSerializer):
@@ -53,6 +59,11 @@ class AttendeeSerializer(serializers.ModelSerializer):
     - Event must not exceed its max capacity.
     """
     event = EventSerializer(read_only=True)
+
+    class Meta:
+        model = Attendee
+        fields = ['id', 'event', 'user', 'created_at', 'updated_at']
+        read_only_fields = ['event', 'created_at', 'updated_at']
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -76,8 +87,3 @@ class AttendeeSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Event is full. Max capacity reached.")
 
         return attrs
-
-    class Meta:
-        model = Attendee
-        fields = ['id', 'event', 'user', 'created_at', 'updated_at']
-        read_only_fields = ['event', 'created_at', 'updated_at']
